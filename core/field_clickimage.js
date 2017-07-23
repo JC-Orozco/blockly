@@ -27,6 +27,7 @@
 goog.provide('Blockly.FieldClickImage');
 
 goog.require('Blockly.FieldImage');
+//goog.require('Blockly.utils');
 
 /**
  * Class for a clickable image.
@@ -64,10 +65,10 @@ Blockly.FieldClickImage.prototype.CURSOR = 'default';
  */
 Blockly.FieldClickImage.prototype.updateEditable = function() {
   if (this.sourceBlock_.isInFlyout || !this.EDITABLE) {
-    Blockly.addClass_(/** @type {!Element} */ (this.fieldGroup_),
+    Blockly.utils.addClass(/** @type {!Element} */ (this.fieldGroup_),
                       'blocklyIconGroupReadonly');
   } else {
-    Blockly.removeClass_(/** @type {!Element} */ (this.fieldGroup_),
+    Blockly.utils.removeClass(/** @type {!Element} */ (this.fieldGroup_),
                          'blocklyIconGroupReadonly');
   }
 };
@@ -84,16 +85,18 @@ Blockly.FieldClickImage.prototype.init = function(block) {
   Blockly.FieldClickImage.superClass_.init.call(this, block);
 
   // We want to use the styling of an Icon  to indicate clickability
-  Blockly.addClass_(/** @type {!Element} */ (this.fieldGroup_),
+  Blockly.utils.addClass(/** @type {!Element} */ (this.fieldGroup_),
                     'blocklyIconGroup');
   //
   // Update the classes for this to appear editable
   this.updateEditable();
   // And bind to the mouseup so that we can get called for a click
   this.mouseUpWrapper_ =
-      Blockly.bindEvent_(this.fieldGroup_, 'mouseup', this, this.onMouseUp_);
+  //    Blockly.bindEvent_(this.fieldGroup_, 'mouseup', this, this.onMouseUp_);
+      Blockly.bindEvent_(this.fieldGroup_, 'mousedown', this, this.onMouseDown_);
   // Force a render.
-  this.updateTextNode_();
+  //this.updateTextNode_();
+  this.render_();
   
   this.imageElement_.style.y = this.yOffset_;
 }
