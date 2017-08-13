@@ -23,7 +23,9 @@
  * @author fraser@google.com (Neil Fraser)
  * @author Andrew Mee
  * @author acbart@vt.edu (Austin Cory Bart)
+ * @author JC-Orozco (Juan Carlos Orozco)
  */
+
 'use strict';
 
 goog.provide('Blockly.FieldTextArea');
@@ -38,16 +40,15 @@ goog.require('goog.userAgent');
 /**
  * Class for an editable text field.
  * @param {string} text The initial content of the field.
- * @param {Function} opt_changeHandler An optional function that is called
+ * @param {Function} opt_validator An optional function that is called
  *     to validate any constraints on what the user entered.  Takes the new
  *     text as an argument and returns either the accepted text, a replacement
  *     text, or null to abort the change.
  * @extends {Blockly.Field}
  * @constructor
  */
-Blockly.FieldTextArea = function(text, opt_changeHandler) {
-  Blockly.FieldTextArea.superClass_.constructor.call(this, text);
-  this.changeHandler_ = opt_changeHandler;
+Blockly.FieldTextArea = function(text, opt_validator) {
+  Blockly.FieldTextArea.superClass_.constructor.call(this, text, opt_validator);
 };
 goog.inherits(Blockly.FieldTextArea, Blockly.Field);
 
@@ -62,7 +63,7 @@ Blockly.FieldTextArea.FONTSIZE = 11;
  *   with the current values of the arguments used during construction.
  */
 Blockly.FieldTextArea.prototype.clone = function() {
-  return new Blockly.FieldTextArea(this.getText(), this.changeHandler_);
+  return new Blockly.FieldTextArea(this.getText(), this.getValidator());
 };
 
 /**
@@ -89,7 +90,7 @@ Blockly.FieldTextArea.prototype.dispose = function() {
  * @param {?string} newValue New value.
  * @override
  */
-Blockly.FieldTextInput.prototype.setValue = function(newValue) {
+Blockly.FieldTextArea.prototype.setValue = function(newValue) {
   if (newValue === null) {
     return;  // No change if null.
   }
@@ -106,30 +107,31 @@ Blockly.FieldTextInput.prototype.setValue = function(newValue) {
 
 /**
  * Set the text in this field.
- * @param {?string} text New text.
+ * @param {?string} newText New text.
  * @override
  */
-Blockly.FieldTextArea.prototype.setText = function(text) {
-  if (text === null) {
+Blockly.FieldTextArea.prototype.setText = function(newText) {
+  if (newText === null) {
     // No change if null.
     return;
   }
-  var oldText = this.text_;
-  if (this.sourceBlock_ && this.changeHandler_) {
-    var validated = this.changeHandler_(text);
-    // If the new text is invalid, validation returns null.
-    // In this case we still want to display the illegal result.
-    if (validated !== null && validated !== undefined) {
-      text = validated;
-    }
-  }
-  //Blockly.Field.prototype.setText.call(this, text);
-  if (text === null || text === this.text_) {
+  newText = String(newText);
+  //  var oldText = this.text_;
+  //  if (this.sourceBlock_ && this.getValidator()) {
+  //    var validated = this.callValidator(text);
+  //    // If the new text is invalid, validation returns null.
+  //    // In this case we still want to display the illegal result.
+  //    if (validated !== null && validated !== undefined) {
+  //      text = validated;
+  //    }
+  //  }
+  //  Blockly.Field.prototype.setText.call(this, text);
+  if (newText === null || newText === this.text_) {
     // No change if null.
     return;
   }
-  this.text_ = text;
-  this.updateTextNode_();
+  //this.text_ = text;
+  //this.updateTextNode_();
 
 //  if (this.sourceBlock_ && this.sourceBlock_.rendered) {
 //    this.sourceBlock_.render();
@@ -140,11 +142,12 @@ Blockly.FieldTextArea.prototype.setText = function(text) {
 //  }
   if (this.sourceBlock_ && Blockly.Events.isEnabled()) {
     Blockly.Events.fire(new Blockly.Events.BlockChange(
-        this.sourceBlock_, 'field', this.name, oldText, text));
+        this.sourceBlock_, 'field', this.name, this.text_, newText));
   }
-  Blockly.Field.prototype.setText.call(this, text);
+  
+  Blockly.Field.prototype.setText.call(this, newText);
+  //this.updateTextNode_();
 };
-
 
 /**
  * Update the text node of this field to display the current text.
@@ -189,12 +192,13 @@ Blockly.FieldTextArea.prototype.updateTextNode_ = function() {
   var that2 = this;
   this.fixAfterLoad = setTimeout(function() {
     that2.render_();
-    if (this.sourceBlock_ && this.sourceBlock_.rendered) {
+    if (that2.sourceBlock_ && that2.sourceBlock_.rendered) {
         that2.sourceBlock_.render();
+        // JCOA Test the next code line:
+        //Blockly.svgResize(that2.sourceBlock_.workspace);
     }
-    // JCOA: Temporary test (2 lines)
+    // JCOA: Test the next code line: 
     //this.resizeEditor_();
-    //Blockly.svgResize(this.sourceBlock_.workspace);
   }, 0);  // Test change to 200, was 0. None of this 3 changes helped.
 };
 
@@ -207,6 +211,7 @@ Blockly.FieldTextArea.prototype.render_ = function() {
     if (!this.visible_ || !this.textElement_) {
         return;
     }
+    this.updateTextNode_();
     this.size_.width = this.textElement_.getBBox().width + 5;
     this.size_.height= (this.text_.split(/\n/).length ||1)*20 + (Blockly.BlockSvg.SEP_SPACE_Y+5) ;
     if (this.borderRect_) {
@@ -216,8 +221,6 @@ Blockly.FieldTextArea.prototype.render_ = function() {
             this.size_.height -  (Blockly.BlockSvg.SEP_SPACE_Y+5));
     }
 };
-        
-
 
 /**
  * Show the inline free-text editor on top of the text.
@@ -226,13 +229,14 @@ Blockly.FieldTextArea.prototype.render_ = function() {
  * @private
  */
 Blockly.FieldTextArea.prototype.showEditor_ = function(opt_quietInput) {
+  this.workspace_ = this.sourceBlock_.workspace;
   var quietInput = opt_quietInput || false;
   if (!quietInput && (goog.userAgent.MOBILE || goog.userAgent.ANDROID ||
                       goog.userAgent.IPAD)) {
     // Mobile browsers have issues with in-line textareas (focus & keyboards).
     var newValue = window.prompt(Blockly.Msg.CHANGE_VALUE_TITLE, this.text_);
-    if (this.changeHandler_) {
-      var override = this.changeHandler_(newValue);
+    if (this.getValidator()) {
+      var override = this.callValidator(newValue);
       if (override !== undefined) {
         newValue = override;
       }
@@ -249,10 +253,10 @@ Blockly.FieldTextArea.prototype.showEditor_ = function(opt_quietInput) {
   
   // Create the input.
   var htmlInput = goog.dom.createDom('textarea', 'blocklyHtmlInput');
-  var fontSize = (Blockly.FieldTextArea.FONTSIZE *this.sourceBlock_.workspace.scale) + 'pt';
+  var fontSize = (Blockly.FieldTextArea.FONTSIZE *this.workspace_.scale) + 'pt';
   div.style.fontSize = fontSize;
   htmlInput.style.fontSize = fontSize;
-  htmlInput.style.fontFamily = 'monospace';
+  //htmlInput.style.fontFamily = 'monospace'; // JCOA Todo. Are we setting this in css?
   htmlInput.setAttribute('spellcheck', this.spellcheck_);
   Blockly.FieldTextArea.htmlInput_ = htmlInput;
   htmlInput.style.resize = 'none';
@@ -280,10 +284,10 @@ Blockly.FieldTextArea.prototype.showEditor_ = function(opt_quietInput) {
   // Bind to keyPress -- repeatedly resize when holding down a key.
   htmlInput.onKeyPressWrapper_ =
       Blockly.bindEvent_(htmlInput, 'keypress', this, this.onHtmlInputChange_);
-  var workspaceSvg = this.sourceBlock_.workspace.getCanvas();
+  var workspaceSvg = this.workspace_.getCanvas();
   
   htmlInput.onWorkspaceChangeWrapper_ = this.resizeEditor_.bind(this);
-  this.sourceBlock_.workspace.addChangeListener(htmlInput.onWorkspaceChangeWrapper_);
+  this.workspace_.addChangeListener(htmlInput.onWorkspaceChangeWrapper_);
 };
 
 /**
@@ -338,8 +342,8 @@ Blockly.FieldTextArea.prototype.validate_ = function() {
   var valid = true;
   goog.asserts.assertObject(Blockly.FieldTextArea.htmlInput_);
   var htmlInput = /** @type {!Element} */ (Blockly.FieldTextArea.htmlInput_);
-  if (this.changeHandler_) {
-    valid = this.changeHandler_(htmlInput.value);
+  if (this.getValidator()) {
+    valid = this.callValidator(htmlInput.value);
   }
   if (valid === null) {
     Blockly.utils.addClass(htmlInput, 'blocklyInvalidInput');
@@ -358,11 +362,11 @@ Blockly.FieldTextArea.prototype.resizeEditor_ = function() {
   var htmlInput = Blockly.FieldTextArea.htmlInput_;
   //div.style.width = bBox.width + 'px';
   if (htmlInput.clientHeight < htmlInput.scrollHeight) {
-    div.style.width = (bBox.width * this.sourceBlock_.workspace.scale) + 'px';
+    div.style.width = (bBox.width * this.workspace_.scale) + 'px';
   } else {
-    div.style.width = bBox.width * this.sourceBlock_.workspace.scale + 'px';
+    div.style.width = bBox.width * this.workspace_.scale + 'px';
   }
-  div.style.height = bBox.height * this.sourceBlock_.workspace.scale + 'px';
+  div.style.height = bBox.height * this.workspace_.scale + 'px';
   // Position the editor
   var xy = this.getAbsoluteXY_();
   // In RTL mode block fields and LTR input fields the left edge moves,
@@ -399,8 +403,8 @@ Blockly.FieldTextArea.prototype.widgetDispose_ = function() {
     var htmlInput = Blockly.FieldTextArea.htmlInput_;
     // Save the edit (if it validates).
     var text = htmlInput.value;
-    if (thisField.changeHandler_) {
-      text = thisField.changeHandler_(text);
+    if (thisField.getValidator()) {
+      text = thisField.callValidator(text);
       if (text === null) {
         // Invalid edit.
         text = htmlInput.defaultValue;
@@ -410,7 +414,7 @@ Blockly.FieldTextArea.prototype.widgetDispose_ = function() {
     thisField.sourceBlock_.rendered && thisField.sourceBlock_.render();
     Blockly.unbindEvent_(htmlInput.onKeyUpWrapper_);
     Blockly.unbindEvent_(htmlInput.onKeyPressWrapper_);
-    thisField.sourceBlock_.workspace.removeChangeListener(htmlInput.onWorkspaceChangeWrapper_);
+    thisField.workspace_.removeChangeListener(htmlInput.onWorkspaceChangeWrapper_);
     Blockly.FieldTextArea.htmlInput_ = null;
     Blockly.Events.setGroup(false);
     // Delete the width property.
