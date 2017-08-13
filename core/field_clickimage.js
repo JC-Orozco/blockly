@@ -21,6 +21,7 @@
 /**
  * @fileoverview clickable image field.
  * @author toebes@extremenetworks.com (John Toebes)
+ * @author JC-Orozco (Juan Carlos Orozco) Port to current blockly july 2017
  */
 'use strict';
 
