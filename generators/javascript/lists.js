@@ -400,3 +400,12 @@ Blockly.JavaScript['lists_reverse'] = function(block) {
   var code = list + '.slice().reverse()';
   return [code, Blockly.JavaScript.ORDER_FUNCTION_CALL];
 };
+
+Blockly.JavaScript['lists_append'] = function(block) {
+  // Append
+  var list = Blockly.JavaScript.valueToCode(block, 'LIST',
+      Blockly.JavaScript.ORDER_MEMBER) || '___';
+  var value = Blockly.JavaScript.valueToCode(block, 'ITEM',
+      Blockly.JavaScript.ORDER_NONE) || '___';
+  return list + '.push(' + value + ')\n';
+};
